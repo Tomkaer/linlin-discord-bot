@@ -72,7 +72,7 @@ async def on_message(message):
 
             await message.reply(response.text[:1900])
 
-        except Exception as e:
+except Exception as e:
     await message.reply(f"AI Error: {e}")
 
     await bot.process_commands(message)
