@@ -1,39 +1,64 @@
-import discord
-from discord.ext import commands
-import yt_dlp
-import asyncio
-import os
+const { Client, GatewayIntentBits } = require('discord.js');
+const { Player } = require('discord-player');
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates
+    ]
+});
 
-intents = discord.Intents.default()
-intents.message_content = True
+const player = new Player(client);
 
-bot = commands.Bot(command_prefix="lin!", intents=intents)
+client.on('ready', () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+});
 
-YTDL_OPTIONS = {
-    "format": "bestaudio/best",
-    "noplaylist": True,
-    "quiet": True,
-    "default_search": "ytsearch"
-}
+client.on('messageCreate', async message => {
+    if (message.author.bot || !message.content.startsWith('!')) return;
 
-FFMPEG_OPTIONS = {
-    "options": "-vn"
-}
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
 
-ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+    // เช็คว่าผู้ใช้และบอทอยู่ในห้องเสียงเดียวกันหรือไม่
+    const channel = message.member.voice.channel;
+    if (!channel && command === 'play') {
+        return message.reply('คุณต้องเข้าห้องเสียงก่อน!');
+    }
 
-@bot.event
-async def on_ready():
-    print(f"{bot.user} ออนไลน์แล้ว!")
+    if (command === 'play') {
+        const query = args.join(' ');
+        if (!query) return message.reply('กรุณาระบุชื่อเพลงหรือ URL!');
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send("🏓 Pong!")
+        try {
+            const { track } = await player.play(channel, query, {
+                nodeOptions: {
+                    metadata: message
+                }
+            });
+            message.reply(`กำลังเล่น: **${track.title}**`);
+        } catch (e) {
+            message.reply('ไม่พบเพลงหรือเกิดข้อผิดพลาดในการเล่น');
+        }
+    }
 
-@bot.command()
-async def play(ctx, *, query):
+    else if (command === 'skip') {
+        const queue = player.nodes.get(message.guildId);
+        if (!queue || !queue.isPlaying()) return message.reply('ไม่มีเพลงกำลังเล่นอยู่');
+        queue.node.skip();
+        message.reply('ข้ามเพลงเรียบร้อย!');
+    }
+
+    else if (command === 'stop') {
+        const queue = player.nodes.get(message.guildId);
+        if (!queue) return message.reply('ไม่มีเพลงกำลังเล่นอยู่');
+        queue.delete();
+        message.reply('หยุดเพลงและออกจากห้องแล้ว!');
+    }
+});
+
+// ใส่ Bot Token ของคุณที่นี่
+client.login('YOUR_DISCORD_BOT_TOKEN');
     if not ctx.author.voice:
         await ctx.send("❌ กรุณาเข้าห้องเสียงก่อน")
         return
